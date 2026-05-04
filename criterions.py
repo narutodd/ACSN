@@ -371,36 +371,6 @@ def get_soft_label(input_tensor, num_class):
     output_tensor = output_tensor.float()
     return output_tensor
 
-
-def dce_evidence_u_loss(p, alpha, c, current_step, lamda_step, total_step, pred):
-    # Dice loss
-    criterion_dl = DiceLoss()
-    if alpha.ndim == 5:
-        soft_p = p.unsqueeze(1)
-    else:
-        soft_p = p
-    L_dice = TDice(pred, soft_p, criterion_dl)
-
-    # digama loss
-    S = torch.sum(alpha, dim=1, keepdim=True)
-    E = alpha - 1
-    label = F.one_hot(p, num_classes=c)
-    label = label.view(-1, c)
-    L_ace = torch.sum(label * (torch.digamma(S) - torch.digamma(alpha)), dim=1, keepdim=True)
-
-    # KL loss
-    annealing_coef = min(1, current_step / lamda_step)
-    annealing_start = torch.tensor(0.01, dtype=torch.float32)
-    annealing_UP = annealing_start * torch.exp(-(torch.log(annealing_start) / total_step) * current_step)
-    alp = E * (1 - label) + 1
-    L_KL = annealing_coef * KL(alp, c)
-
-    # UP Loss
-    uncertainty = c / S
-    uncertainty_aware_label = label * uncertainty
-    L_UP = annealing_UP * torch.sum(-uncertainty_aware_label*torch.log(pred.permute(0, 2, 3, 1).reshape(-1, c)), dim=1, keepdim=True)
-    return (L_ace + L_UP  + L_KL + (1 - annealing_UP)*L_dice)
-
 def dce_evidence_u_loss_w_control(
     p, alpha, c, current_step, lamda_step, total_step, pred,
     use_ace=True, use_up=True, use_kl=True, use_dice=True
