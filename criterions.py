@@ -116,7 +116,7 @@ def get_tp_fp_fn_tn(net_output, gt, axes=None, mask=None, square=False):
 
 def KL(alpha, c):
     S_alpha = torch.sum(alpha, dim=1, keepdim=True)
-    beta = torch.ones((1, c)).cuda()
+    beta = torch.ones((1, c),device=alpha.device)
     # Mbeta = torch.ones((alpha.shape[0],c)).cuda()
     S_beta = torch.sum(beta, dim=1, keepdim=True)
     lnB = torch.lgamma(S_alpha) - torch.sum(torch.lgamma(alpha), dim=1, keepdim=True)
@@ -395,11 +395,120 @@ def dce_evidence_u_loss(p, alpha, c, current_step, lamda_step, total_step, pred)
     alp = E * (1 - label) + 1
     L_KL = annealing_coef * KL(alp, c)
 
+    # CU Loss
+    # pred_scores, pred_cls = torch.max(alpha / S, 1, keepdim=True)
+    # uncertainty = c / S
+    # target = p.view(-1, 1)
+    # acc_match = torch.reshape(torch.eq(pred_cls, target).float(), (-1, 1))
+    # acc_uncertain = - pred_scores * torch.log(1 - uncertainty + 1e-10)
+    # inacc_certain = - (1 - pred_scores) * torch.log(uncertainty + 1e-10)
+    # L_CU = annealing_UP * acc_match * acc_uncertain + (1 - annealing_UP) * (1 - acc_match) * inacc_certain
+
     # UP Loss
     uncertainty = c / S
     uncertainty_aware_label = label * uncertainty
     L_UP = annealing_UP * torch.sum(-uncertainty_aware_label*torch.log(pred.permute(0, 2, 3, 1).reshape(-1, c)), dim=1, keepdim=True)
     return (L_ace + L_UP  + L_KL + (1 - annealing_UP)*L_dice)
+
+def dce_evidence_u_loss_w_control(
+    p, alpha, c, current_step, lamda_step, total_step, pred,
+    use_ace=True, use_up=True, use_kl=True, use_dice=True
+):
+    eps = 1e-8
+
+    # ----------------------------------------
+    # 0. Basic clamping on alpha (防止 evidence 爆炸)
+    # ----------------------------------------
+    alpha = torch.clamp(alpha, min=1e-4, max=1e4)
+
+    # Dice loss (安全稳定)
+    criterion_dl = DiceLoss()
+    soft_p = p.unsqueeze(1) if alpha.ndim == 5 else p
+    L_dice = TDice(pred, soft_p, criterion_dl)
+
+    # ----------------------------------------
+    # 1. Compute S and E safely
+    # ----------------------------------------
+    S = torch.sum(alpha, dim=1, keepdim=True)
+    S = torch.clamp(S, min=1e-4, max=1e4)
+
+    E = alpha - 1
+    E = torch.clamp(E, min=0, max=1e4)
+
+    # ----------------------------------------
+    # 2. One hot label (must be float32)
+    # ----------------------------------------
+    label = F.one_hot(p, num_classes=c).float()
+    label = label.view(-1, c)
+
+    # ----------------------------------------
+    # 3. ACE Loss (Safe digamma)
+    # ----------------------------------------
+    digamma_S = torch.digamma(S)
+    digamma_alpha = torch.digamma(alpha)
+
+    # 替换任何 NaN 为 0（不会影响梯度稳定性）
+    digamma_S = torch.nan_to_num(digamma_S, 0.0)
+    digamma_alpha = torch.nan_to_num(digamma_alpha, 0.0)
+
+    L_ace = torch.sum(
+        label * (digamma_S - digamma_alpha), dim=1, keepdim=True
+    )
+
+    # ----------------------------------------
+    # 4. KL Loss (Safe KL)
+    # ----------------------------------------
+    annealing_coef = min(1.0, current_step / lamda_step)
+    annealing_start = torch.tensor(0.01, device=alpha.device)
+
+    annealing_UP = torch.clamp(
+        annealing_start *
+        torch.exp(-(torch.log(annealing_start) / (total_step + eps)) * current_step),
+        min=0.0, max=1.0
+    )
+
+    alp = E * (1 - label) + 1
+    alp = torch.clamp(alp, min=1e-4, max=1e4)
+
+    L_KL = annealing_coef * KL(alp, c)
+
+    # ----------------------------------------
+    # 5. UP Loss (Safe log)
+    # ----------------------------------------
+    uncertainty = c / (S + eps)
+    uncertainty = torch.clamp(uncertainty, min=eps, max=1e4)
+
+    uncertainty_aware_label = label * uncertainty
+
+    pred_r = pred.permute(0, 2, 3, 1).reshape(-1, c)
+    pred_r = torch.clamp(pred_r, min=eps, max=1.0)
+
+    L_UP = annealing_UP * torch.sum(
+        -uncertainty_aware_label * torch.log(pred_r + eps),
+        dim=1, keepdim=True
+    )
+
+    # ----------------------------------------
+    # 6. Combine losses (ablation control)
+    # ----------------------------------------
+    total_loss = 0.0
+
+    if use_ace:
+        total_loss = total_loss + L_ace
+
+    if use_up:
+        total_loss = total_loss + L_UP
+
+    if use_kl:
+        total_loss = total_loss + L_KL
+
+    if use_dice:
+        total_loss = total_loss + (1 - annealing_UP) * L_dice
+
+    # Final safe return: replace NaNs again (保险起见)
+    total_loss = torch.nan_to_num(total_loss, nan=0.0, posinf=1e3, neginf=-1e3)
+
+    return total_loss
 
 
 def softmax_dice(output, target):
