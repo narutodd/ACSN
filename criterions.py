@@ -395,15 +395,6 @@ def dce_evidence_u_loss(p, alpha, c, current_step, lamda_step, total_step, pred)
     alp = E * (1 - label) + 1
     L_KL = annealing_coef * KL(alp, c)
 
-    # CU Loss
-    # pred_scores, pred_cls = torch.max(alpha / S, 1, keepdim=True)
-    # uncertainty = c / S
-    # target = p.view(-1, 1)
-    # acc_match = torch.reshape(torch.eq(pred_cls, target).float(), (-1, 1))
-    # acc_uncertain = - pred_scores * torch.log(1 - uncertainty + 1e-10)
-    # inacc_certain = - (1 - pred_scores) * torch.log(uncertainty + 1e-10)
-    # L_CU = annealing_UP * acc_match * acc_uncertain + (1 - annealing_UP) * (1 - acc_match) * inacc_certain
-
     # UP Loss
     uncertainty = c / S
     uncertainty_aware_label = label * uncertainty
