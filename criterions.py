@@ -454,7 +454,7 @@ def dce_evidence_u_loss_w_control(
     total_loss = 0.0
 
     if use_ace:
-        total_loss = total_loss + L_ace
+        total_loss = total_loss + (1 - annealing_UP) * L_ace
 
     if use_up:
         total_loss = total_loss + L_UP
@@ -463,7 +463,7 @@ def dce_evidence_u_loss_w_control(
         total_loss = total_loss + L_KL
 
     if use_dice:
-        total_loss = total_loss + (1 - annealing_UP) * L_dice
+        total_loss = total_loss + L_dice
 
     # Final safe return: replace NaNs again
     total_loss = torch.nan_to_num(total_loss, nan=0.0, posinf=1e3, neginf=-1e3)
