@@ -2,7 +2,7 @@ import networks_ours_LUC as networks
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from criterions import dce_evidence_u_loss
+from criterions import dce_evidence_u_loss_w_control
 from networks_ours_LUC import DS_Combin
 
 
@@ -364,16 +364,16 @@ class ACSN(nn.Module):
 
     def backward_seg(self):
         lambda_seg = self.opts.lambda_seg
-        loss_seg_A = torch.mean(dce_evidence_u_loss(self.masks.squeeze(1).to(torch.int64), self.alpha_A, self.opts.num_classes,
+        loss_seg_A = torch.mean(dce_evidence_u_loss_w_control(self.masks.squeeze(1).to(torch.int64), self.alpha_A, self.opts.num_classes,
                                      self.current_epoch, self.opts.lambda_epochs, (self.opts.n_ep + self.opts.n_ep_decay),
                                      self.evidence_A+1))
-        loss_seg_B = torch.mean(dce_evidence_u_loss(self.masks.squeeze(1).to(torch.int64), self.alpha_B, self.opts.num_classes,
+        loss_seg_B = torch.mean(dce_evidence_u_loss_w_control(self.masks.squeeze(1).to(torch.int64), self.alpha_B, self.opts.num_classes,
                                      self.current_epoch, self.opts.lambda_epochs, (self.opts.n_ep + self.opts.n_ep_decay),
                                      self.evidence_B+1))
-        loss_seg_fusion = torch.mean(dce_evidence_u_loss(self.masks.squeeze(1).to(torch.int64), self.alpha_fusion, self.opts.num_classes,
+        loss_seg_fusion = torch.mean(dce_evidence_u_loss_w_control(self.masks.squeeze(1).to(torch.int64), self.alpha_fusion, self.opts.num_classes,
                                      self.current_epoch, self.opts.lambda_epochs, (self.opts.n_ep + self.opts.n_ep_decay),
                                      self.evidence_fusion+1))
-        loss_seg_last = torch.mean(dce_evidence_u_loss(self.masks.squeeze(1).to(torch.int64), self.alpha_last, self.opts.num_classes,
+        loss_seg_last = torch.mean(dce_evidence_u_loss_w_control(self.masks.squeeze(1).to(torch.int64), self.alpha_last, self.opts.num_classes,
                                      self.current_epoch, self.opts.lambda_epochs, (self.opts.n_ep + self.opts.n_ep_decay),
                                      self.evidence_last+1))
         self.loss_seg = (loss_seg_A + loss_seg_B + loss_seg_fusion + loss_seg_last) * lambda_seg
