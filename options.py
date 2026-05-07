@@ -19,7 +19,7 @@ class TrainOptions():
     self.parser.add_argument('--no_flip', action='store_true', help='specified if no flipping')
 
     # ouptput related
-    self.parser.add_argument('--name', type=str, default='autoPET_woLDE', help='folder name to save outputs')
+    self.parser.add_argument('--name', type=str, default='autoPET_ACSN', help='folder name to save outputs')
     self.parser.add_argument('--display_dir', type=str, default='../logs', help='path for saving display results')
     self.parser.add_argument('--result_dir', type=str, default='../results', help='path for saving result images and models')
     self.parser.add_argument('--display_freq', type=int, default=1, help='freq (iteration) of display')
@@ -73,7 +73,7 @@ class TestOptions():
     self.parser.add_argument('--no_flip', action='store_true', help='specified if no flipping')
 
     # ouptput related
-    self.parser.add_argument('--name', type=str, default='autoPET_woLDE', help='folder name to save outputs')
+    self.parser.add_argument('--name', type=str, default='autoPET_ACSN', help='folder name to save outputs')
     self.parser.add_argument('--result_dir', type=str, default='../results', help='path for saving result images and models')
     self.parser.add_argument('--display_dir', type=str, default='../logs', help='path for saving display results')
 
