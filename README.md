@@ -1,2 +1,4 @@
 # ACSN
-The core implementation files, including the model definition, network modules, loss functions, dataset processing code, and configuration files have been uploaded. These files provide the main architectural and optimization components of ACSN. The remaining training/testing scripts, detailed running instructions, and full reproducibility materials are being organized and will be released upon acceptance.
+The core implementation files, including the model definition, network modules, loss functions, dataset processing code, and configuration files have been uploaded. These files provide the main architectural and optimization components of ACSN. 
+
+The remaining training/testing scripts, detailed running instructions, and full reproducibility materials are being organized and will be released upon acceptance.
